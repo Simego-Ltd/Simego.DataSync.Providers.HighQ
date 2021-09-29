@@ -79,9 +79,7 @@ namespace Simego.DataSync.Providers.HighQ
 
                             var json = JsonConvert.SerializeObject(model, Formatting.Indented);
 
-                            var resut = RequestHelper.PostRequestAsJson(json,
-                                RequestHelper.CombinePaths(DataSourceReader.ServiceUrl,
-                                    $"api/{DataSourceReader.ApiVersion}/isheet/item/create"));
+                            RequestHelper.PostRequestAsJson(json, RequestHelper.CombinePaths(DataSourceReader.ServiceUrl, $"api/{DataSourceReader.ApiVersion}/isheet/item/create"));
                             
                             //Call the Automation AfterAddItem (pass the created item identifier if possible)
                             Automation?.AfterAddItem(this, itemInvariant, null);
@@ -169,9 +167,7 @@ namespace Simego.DataSync.Providers.HighQ
 
                             var json = JsonConvert.SerializeObject(model, Formatting.Indented);
 
-                            var resut = RequestHelper.PostRequestAsJson(json,
-                                RequestHelper.CombinePaths(DataSourceReader.ServiceUrl,
-                                    $"api/{DataSourceReader.ApiVersion}/isheet/item/create"));
+                            RequestHelper.PostRequestAsJson(json, RequestHelper.CombinePaths(DataSourceReader.ServiceUrl, $"api/{DataSourceReader.ApiVersion}/isheet/item/create"));
 
                             //Call the Automation AfterUpdateItem 
                             Automation?.AfterUpdateItem(this, itemInvariant, item_id);
@@ -216,12 +212,8 @@ namespace Simego.DataSync.Providers.HighQ
                         Automation?.BeforeDeleteItem(this, itemInvariant, item_id);
 
                         if (itemInvariant.Sync)
-                        {
-                            #region Delete Item
-
-                            //TODO: Write the Code to Delete the Item in the Target using item_id as the Key to the item.
-
-                            #endregion
+                        {                            
+                            RequestHelper.DeleteRequestAsJson(null, RequestHelper.CombinePaths(DataSourceReader.ServiceUrl, $"api/{DataSourceReader.ApiVersion}/isheet/{DataSourceReader.SheetID}/items?itemids={item_id}"));
 
                             //Call the Automation AfterDeleteItem 
                             Automation?.AfterDeleteItem(this, itemInvariant, item_id);
