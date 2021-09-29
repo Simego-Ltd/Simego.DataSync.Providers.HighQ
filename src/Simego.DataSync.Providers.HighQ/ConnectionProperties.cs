@@ -102,7 +102,11 @@ namespace Simego.DataSync.Providers.HighQ
 
         [Category("Authentication")]
         [Editor(typeof(HighQOAuthCredentialsWebTypeEditor), typeof(UITypeEditor))]
-        public string Authorize { get; set; }
+        public string Authorize
+        {
+            get => _reader.Authorize;
+            set => _reader.Authorize = value;
+        }
 
         public ConnectionProperties(HighQDataSourceReader reader)
         {

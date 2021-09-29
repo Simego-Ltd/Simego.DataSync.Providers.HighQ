@@ -14,9 +14,10 @@ using System.Windows.Forms;
 namespace Simego.DataSync.Providers.HighQ
 {
     [ProviderInfo(Name = "HighQ iSheet", Description = "HighQ iSheet Datasource")]
-    public class HighQDataSourceReader : DataReaderProviderBase, IDataSourceSetup, IHighQOAuthConfiguration
+    public class HighQDataSourceReader : DataReaderProviderBase, IDataSourceSetup, IDataSourceRegistry, IHighQOAuthConfiguration
     {
         private ConnectionInterface _connectionIf;
+        private IDataSourceRegistryProvider _registryProvider;
         private readonly HttpWebRequestHelper _requestHelper = new HttpWebRequestHelper();
 
         [Category("Settings")]
@@ -69,7 +70,7 @@ namespace Simego.DataSync.Providers.HighQ
         [Category("Authentication")]
         [Editor(typeof(HighQOAuthCredentialsWebTypeEditor), typeof(UITypeEditor))]
         public string Authorize { get; set; }
-
+        
         public override DataTableStore GetDataTable(DataTableStore dt)
         {
             ApplyOAuthAccessToken();
@@ -227,6 +228,7 @@ namespace Simego.DataSync.Providers.HighQ
             //Return the Provider Settings so we can save the Project File.
             return new List<ProviderParameter>
                        {
+                            new ProviderParameter("RegistryKey", RegistryKey),
                             new ProviderParameter("ServiceUrl", ServiceUrl),
                             new ProviderParameter("ApiVersion", ApiVersion.ToString()),
                             new ProviderParameter("OAuth.ClientID", ClientID),
@@ -251,11 +253,16 @@ namespace Simego.DataSync.Providers.HighQ
 
                 switch (p.Name)
                 {
+                    case "RegistryKey":
+                        {
+                            RegistryKey = p.Value;
+                            break;
+                        }
                     case "ServiceUrl":
-                    {
-                        ServiceUrl = p.Value;
-                        break;
-                    }
+                        {
+                            ServiceUrl = p.Value;
+                            break;
+                        }
                     case "OAuth.ClientID":
                         {
                             ClientID = p.Value;
@@ -391,8 +398,8 @@ namespace Simego.DataSync.Providers.HighQ
                 RefreshToken = SecurityService.EncryptValue(result["refresh_token"]?.ToObject<string>());
                 TokenExpires = DateTime.UtcNow.AddSeconds(result["expires_in"]?.ToObject<int>() ?? 0);
 
-                // TODO: Update Registry to apply updated Access and Refresh Token
-                //UpdateRegistry(_registryProvider, RegistryKey, GetRegistryInitializationParameters());
+                // Update Registry to apply updated Access and Refresh Token
+                UpdateRegistry(_registryProvider, RegistryKey, GetRegistryInitializationParameters());
             }
 
             _requestHelper.SetAuthorizationHeader(SecurityService.DecyptValue(AccessToken));
@@ -414,5 +421,223 @@ namespace Simego.DataSync.Providers.HighQ
             RefreshToken = SecurityService.EncryptValue(configuration.RefreshToken);
             TokenExpires = configuration.TokenExpires;
         }
+
+        #region IDataSourceRegistry Members
+        
+        [Category("Connection.Library")]
+        [Description("Key Name of the Item in the Connection Library")]
+        [DisplayName("Key")]
+        public string RegistryKey { get; set; }
+        
+        public void InitializeFromRegistry(IDataSourceRegistryProvider provider)
+        {
+            _registryProvider = provider;
+            var registry = provider.Get(RegistryKey);
+            if (registry != null)
+            {
+                foreach (ProviderParameter p in registry.Parameters)
+                {
+                    switch (p.Name)
+                    {
+                        case "ServiceUrl":
+                            {
+                                ServiceUrl = p.Value;
+                                break;
+                            }
+                        case "OAuth.ClientID":
+                            {
+                                ClientID = p.Value;
+                                break;
+                            }
+                        case "OAuth.ClientSecret":
+                            {
+                                ClientSecret = p.Value;
+                                break;
+                            }
+                        case "OAuth.RefreshToken":
+                            {
+                                RefreshToken = p.Value;
+                                break;
+                            }
+                        case "OAuth.AccessToken":
+                            {
+                                AccessToken = p.Value;
+                                break;
+                            }
+                        case "OAuth.TokenExpires":
+                            {
+                                if (DateTime.TryParse(p.Value, out var val))
+                                {
+                                    TokenExpires = val.ToUniversalTime();
+                                }
+
+                                break;
+                            }
+                        case "OAuth.Authorize":
+                            {
+                                Authorize = p.Value;
+                                break;
+                            }
+                        case "ApiVersion":
+                            {
+                                if (int.TryParse(p.Value, out var val))
+                                {
+                                    ApiVersion = val;
+                                }
+
+                                break;
+                            }
+                    }
+                }
+            }
+        }
+
+        public List<ProviderParameter> GetRegistryInitializationParameters()
+        {
+            return new List<ProviderParameter>
+                       {
+                            new ProviderParameter("ServiceUrl", ServiceUrl),
+                            new ProviderParameter("ApiVersion", ApiVersion.ToString()),
+                            new ProviderParameter("OAuth.ClientID", ClientID),
+                            new ProviderParameter("OAuth.ClientSecret", SecurityService.EncryptValue(ClientSecret)),
+                            new ProviderParameter("OAuth.RefreshToken", SecurityService.EncryptValue(RefreshToken)),
+                            new ProviderParameter("OAuth.AccessToken", SecurityService.EncryptValue(AccessToken)),
+                            new ProviderParameter("OAuth.TokenExpires", TokenExpires.ToString("o")),
+                            new ProviderParameter("OAuth.Authorize", Authorize),
+                       };
+        }
+
+        public IDataSourceReader ConnectFromRegistry(IDataSourceRegistryProvider provider)
+        {
+            InitializeFromRegistry(provider);
+            return this;
+        }
+
+        public object GetRegistryInterface() => string.IsNullOrEmpty(RegistryKey) ? this : (object)new HighQDataSourceReaderWithRegistry(this);
+
+        #endregion
+    }
+
+    public class HighQDataSourceReaderWithRegistry : DataReaderRegistryView<HighQDataSourceReader>, IHighQOAuthConfiguration
+    {
+        [Category("Connection.Library")]
+        [Description("Key Name of the Item in the Connection Library")]
+        [DisplayName("Key")]
+        public string RegistryKey { get { return _reader.RegistryKey; } set { _reader.RegistryKey = value; } }
+
+        [Category("Settings")]
+        [ReadOnly(true)]
+        public string ServiceUrl
+        {
+            get => _reader.ServiceUrl;
+            set => _reader.ServiceUrl = value;
+        }
+
+        [Category("Settings")]
+        [ReadOnly(true)]
+        public int ApiVersion
+        {
+            get => _reader.ApiVersion;
+            set => _reader.ApiVersion = value;
+        }
+
+        [Category("Connection")]
+        [ReadOnly(true)]
+        public int SiteID
+        {
+            get => _reader.SiteID;
+            set => _reader.SiteID = value;
+        }
+
+        [Category("Connection")]
+        [Editor(typeof(HighQSiteListTypeEditor), typeof(UITypeEditor))]
+        public string Site
+        {
+            get => _reader.Site;
+            set => _reader.Site = value;
+        }
+
+        [Category("Connection")]
+        [ReadOnly(true)]
+        public int SheetID
+        {
+            get => _reader.SheetID;
+            set => _reader.SheetID = value;
+        }
+
+        [Category("Connection")]
+        [Editor(typeof(HighQSheetListTypeEditor), typeof(UITypeEditor))]
+        public string Sheet
+        {
+            get => _reader.Sheet;
+            set => _reader.Sheet = value;
+        }
+
+        [Category("Authentication")]
+        [ReadOnly(true)]
+        public string ClientID
+        {
+            get => _reader.ClientID;
+            set => _reader.ClientID = value;
+        }
+
+        [Category("Authentication")]
+        [PasswordPropertyText(true)]
+        [ReadOnly(true)]
+        [Browsable(false)]
+        public string ClientSecret
+        {
+            get => _reader.ClientSecret;
+            set => _reader.ClientSecret = value;
+        }
+
+        [Category("Authentication")]
+        [ReadOnly(true)]
+        [Browsable(false)]
+        public string AccessToken
+        {
+            get => _reader.AccessToken;
+            set => _reader.AccessToken = value;
+        }
+
+        [Category("Authentication")]
+        [ReadOnly(true)]
+        [Browsable(false)]
+        public string RefreshToken
+        {
+            get => _reader.RefreshToken;
+            set => _reader.RefreshToken = value;
+        }
+
+        [Category("Authentication")]
+        [ReadOnly(true)]
+        [Browsable(false)]
+        public DateTime TokenExpires
+        {
+            get => _reader.TokenExpires;
+            set => _reader.TokenExpires = value;
+        }
+
+        [Category("Authentication")]
+        [Editor(typeof(HighQOAuthCredentialsWebTypeEditor), typeof(UITypeEditor))]
+        [ReadOnly(true)]
+        [Browsable(false)]
+        public string Authorize
+        {
+            get => _reader.Authorize;
+            set => _reader.Authorize = value;
+        }
+
+        public HighQDataSourceReaderWithRegistry(HighQDataSourceReader reader) : base(reader)
+        {
+
+        }
+
+        public IEnumerable<HighQSite> GetSites() => _reader.GetSites();
+        public IEnumerable<HighQSheet> GetSheets(int siteId) => _reader.GetSheets(siteId);
+
+        HighQOAuthConfiguration IHighQOAuthConfiguration.GetOauthConfiguration() => ((IHighQOAuthConfiguration)_reader).GetOauthConfiguration();
+
+        void IHighQOAuthConfiguration.UpdateOauthConfiguration(HighQOAuthConfiguration configuration) => ((IHighQOAuthConfiguration)_reader).UpdateOauthConfiguration(configuration);
     }
 }
