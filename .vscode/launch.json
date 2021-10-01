@@ -1,0 +1,19 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch",
+            "type": "clr",
+            "request": "launch",
+            "program": "C:\\Program Files\\Simego\\Data Synchronisation Studio 3.0\\Simego.DataSync.Studio.exe",
+            "stopOnEntry": false,
+            "args": [ 
+                "-debug"
+            ],
+            "cwd": "${workspaceFolder}\\src\\Simego.DataSync.Providers.HighQ\\bin\\Debug\\net472"            
+        }
+    ]
+}
