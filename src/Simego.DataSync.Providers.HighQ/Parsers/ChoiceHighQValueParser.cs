@@ -5,10 +5,10 @@ using Simego.DataSync.Providers.HighQ.Models;
 
 namespace Simego.DataSync.Providers.HighQ.Parsers
 {
-    public class ChoiceHighQValueParser : IHighQValueParser
+    class ChoiceHighQValueParser : IHighQValueParser
     {
 
-        public object ConvertValue(object value)
+        public object ConvertValue(HighQDataSchemaItem column, object value)
         {
             return new HighQSheetItemDefaultValueModel()
             {
@@ -24,7 +24,7 @@ namespace Simego.DataSync.Providers.HighQ.Parsers
         //      }
         //    }
         //  }
-        public object ParseValue(JToken token)
+        public object ParseValue(HighQDataSchemaItem column, JToken token)
         {
             var choices = token?["rawdata"]?["choices"]?["choice"];
             if (choices == null) return null;

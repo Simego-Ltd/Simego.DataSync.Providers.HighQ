@@ -72,4 +72,22 @@ namespace Simego.DataSync.Providers.HighQ.Models
         [JsonProperty("text")]
         public string [] Text { get; set; }
     }
+        
+    class HighQSheetLookupModel
+    {
+        [JsonProperty("isheetitems")]
+        public HighQSheetLookupValueModel Items { get; set; }
+    }
+    
+    class HighQSheetLookupValueModel
+    {
+        [JsonProperty("isheetitem")]
+        public HighQSheetLookupItemValueModel[] Items { get; set; }
+    }
+
+    class HighQSheetLookupItemValueModel
+    {
+        [JsonProperty("recordid")]
+        public int Item { get; set; }
+    }
 }

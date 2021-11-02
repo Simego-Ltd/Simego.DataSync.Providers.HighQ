@@ -58,6 +58,22 @@ namespace Simego.DataSync.Providers.HighQ
             set => _reader.Sheet = value;
         }
 
+        [Category("Connection")]
+        [ReadOnly(true)]
+        public int ViewID
+        {
+            get => _reader.ViewID;
+            set => _reader.ViewID = value;
+        }
+        
+        [Category("Connection")]
+        [Editor(typeof(HighQSheetViewListTypeEditor), typeof(UITypeEditor))]
+        public string View
+        {
+            get => _reader.View;
+            set => _reader.View = value;
+        }
+
         [Category("Authentication")]
         public string ClientID
         {
@@ -115,6 +131,7 @@ namespace Simego.DataSync.Providers.HighQ
 
         public IEnumerable<HighQSite> GetSites() => _reader.GetSites();
         public IEnumerable<HighQSheet> GetSheets(int siteId) => _reader.GetSheets(siteId);
+        public IEnumerable<HighQSheetView> GetSheetViews(int sheetId) => _reader.GetSheetViews(sheetId);
 
         HighQOAuthConfiguration IHighQOAuthConfiguration.GetOauthConfiguration() => ((IHighQOAuthConfiguration)_reader).GetOauthConfiguration();
         void IHighQOAuthConfiguration.UpdateOauthConfiguration(HighQOAuthConfiguration configuration) => ((IHighQOAuthConfiguration)_reader).UpdateOauthConfiguration(configuration);

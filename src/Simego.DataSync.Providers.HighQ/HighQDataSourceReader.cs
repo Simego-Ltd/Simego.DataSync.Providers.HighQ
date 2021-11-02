@@ -42,8 +42,16 @@ namespace Simego.DataSync.Providers.HighQ
         public int SheetID { get; set; }
 
         [Category("Connection")]
+        [ReadOnly(true)]
+        public int ViewID { get; set; }
+        
+        [Category("Connection")]
         [Editor(typeof(HighQSheetListTypeEditor), typeof(UITypeEditor))]
         public string Sheet { get; set; }
+        
+        [Category("Connection")]
+        [Editor(typeof(HighQSheetViewListTypeEditor), typeof(UITypeEditor))]
+        public string View { get; set; }
 
         [Category("Authentication")]
         public string ClientID { get; set; }
@@ -92,7 +100,7 @@ namespace Simego.DataSync.Providers.HighQ
 
             do
             {
-                var dataRequest = _requestHelper.GetRequestAsJson(_requestHelper.CombinePaths(ServiceUrl, $"api/{ApiVersion}/isheet/{SheetID}/items?limit={limit}&offset={offset}"));
+                var dataRequest = _requestHelper.GetRequestAsJson(_requestHelper.CombinePaths(ServiceUrl, $"api/{ApiVersion}/isheet/{SheetID}/items?sheetviewid={ViewID}&limit={limit}&offset={offset}"));
 
                 // if only 1 result then isheet.data.item is not an array.
                 var data = dataRequest["isheet"]?["data"]?["item"];
@@ -140,7 +148,7 @@ namespace Simego.DataSync.Providers.HighQ
 
                                     if (column["attributecolumnid"].ToObject<int>() == columnInfo.Id)
                                     {
-                                        return columnInfo.HighQValueParser.ParseValue(column);
+                                        return columnInfo.HighQValueParser.ParseValue(columnInfo, column);
                                     }
                                 }
                             }
@@ -162,8 +170,10 @@ namespace Simego.DataSync.Providers.HighQ
         {
             //Return the SheetData source default Schema.
 
+            var adminColumns = GetColumns();
+
             ApplyOAuthAccessToken();
-            var schemaRequest = _requestHelper.GetRequestAsJson(_requestHelper.CombinePaths(ServiceUrl, $"api/{ApiVersion}/isheet/{SheetID}/items?limit=1"));
+            var schemaRequest = _requestHelper.GetRequestAsJson(_requestHelper.CombinePaths(ServiceUrl, $"api/{ApiVersion}/isheet/{SheetID}/items?limit=1&sheetviewid={ViewID}"));
 
             yield return new HighQDataSchemaItem
             { Name = "itemid", Key = true, AllowNull = false, FieldType = HighQDataSchemaItemType.FieldInteger, ReadOnly = true };
@@ -173,18 +183,75 @@ namespace Simego.DataSync.Providers.HighQ
 
             foreach (var column in schemaRequest["isheet"]["head"]["headcolumn"])
             {
-                var columnType = HighQDataSchemaItem.GetTypeFromHighQDescription(column["columntypealias"].ToObject<string>());
-                var parser = HighQDataSchemaItem.GetValueParserFromType(columnType);
+                var columnid = column["columnid"].ToObject<int>();
+                var columnparentid = column["parentcolumnid"]?.ToObject<int>();
+                var columnTypeName = column["columntypealias"].ToObject<string>();
 
-                yield return new HighQDataSchemaItem()
+                // Lookup the Parent column to see if this is a Lookup Column
+                if (columnparentid.HasValue && adminColumns.TryGetValue(columnparentid.Value, out var c))
                 {
-                    Name = column["columnvalue"].ToObject<string>(),
-                    Id = column["columnid"].ToObject<int>(),
-                    Sequence = column["sequence"].ToObject<int>(),
-                    FieldType = columnType,
-                    HighQValueParser = parser
-                };
+                    if (string.Equals("Lookup", c.Type, StringComparison.OrdinalIgnoreCase))
+                    {
+                        //linkname
+                        yield return new HighQDataSchemaItem()
+                        {
+                            Name = $"{column["columnvalue"].ToObject<string>()}|recordid",
+                            Id = columnid,
+                            Sequence = column["sequence"].ToObject<int>(),
+                            FieldType = HighQDataSchemaItemType.FieldSheetLookup,
+                            HighQValueParser = HighQDataSchemaItem.GetValueParserFromType(HighQDataSchemaItemType.FieldSheetLookup)
+                        };
+
+                        yield return new HighQDataSchemaItem()
+                        {
+                            Name = $"{column["columnvalue"].ToObject<string>()}|linkname",
+                            Id = columnid,
+                            Sequence = column["sequence"].ToObject<int>(),
+                            FieldType = HighQDataSchemaItemType.FieldSheetLookup,
+                            HighQValueParser = HighQDataSchemaItem.GetValueParserFromType(HighQDataSchemaItemType.FieldSheetLookup),
+                            ReadOnly = true
+                        };
+                    }
+                }
+                else
+                {
+                    var columnType = HighQDataSchemaItem.GetTypeFromHighQDescription(columnTypeName);
+                    var parser = HighQDataSchemaItem.GetValueParserFromType(columnType);
+
+                    yield return new HighQDataSchemaItem()
+                    {
+                        Name = column["columnvalue"].ToObject<string>(),
+                        Id = columnid,
+                        Sequence = column["sequence"].ToObject<int>(),
+                        FieldType = columnType,
+                        HighQValueParser = parser
+                    };
+                }
             }
+        }
+
+        /// <summary>
+        /// Calls the internal Admin Columns API so we can find the actual Lookup Columns.
+        /// </summary>
+        /// <returns></returns>
+        internal IDictionary<int, HighQColumn> GetColumns()
+        {
+            ApplyOAuthAccessToken();
+            var schemaRequest = _requestHelper.GetRequestAsJson(_requestHelper.CombinePaths(ServiceUrl, $"api/{ApiVersion}/isheets/{SheetID}/columns"));
+
+            var columns = new List<HighQColumn>();
+            foreach (var column in schemaRequest["column"])
+            {
+                columns.Add(
+                    new HighQColumn
+                    {
+                        ID = column["columnID"].ToObject<int>(),
+                        Name = column["title"].ToObject<string>(),
+                        Type = column["type"].ToObject<string>()
+                    });
+            }
+
+            return columns.ToDictionary(k => k.ID);
         }
 
         public IEnumerable<HighQSite> GetSites()
@@ -217,6 +284,22 @@ namespace Simego.DataSync.Providers.HighQ
             }
         }
 
+        public IEnumerable<HighQSheetView> GetSheetViews(int sheetId)
+        {
+            ApplyOAuthAccessToken();
+            var request = _requestHelper.GetRequestAsJson(_requestHelper.CombinePaths(ServiceUrl, $"api/{ApiVersion}/isheets/admin/{sheetId}/views"));
+
+            foreach (var site in request["isheetview"])
+            {
+                yield return new HighQSheetView()
+                {
+                    ID = site["viewid"].ToObject<int>(),
+                    SheetID = sheetId,
+                    Name = site["title"].ToObject<string>()
+                };
+            }
+        }
+
         public HttpWebRequestHelper GetRequestHelper()
         {
             ApplyOAuthAccessToken();
@@ -239,8 +322,10 @@ namespace Simego.DataSync.Providers.HighQ
                             new ProviderParameter("OAuth.Authorize", Authorize),
                             new ProviderParameter("SiteID", SiteID.ToString()),
                             new ProviderParameter("SheetID", SheetID.ToString()),
+                            new ProviderParameter("ViewID", ViewID.ToString()),
                             new ProviderParameter("Site", Site),
-                            new ProviderParameter("Sheet", Sheet)
+                            new ProviderParameter("Sheet", Sheet),
+                            new ProviderParameter("View", View)
                        };
         }
 
@@ -334,6 +419,20 @@ namespace Simego.DataSync.Providers.HighQ
                         Sheet = p.Value;
                         break;
                     }
+                    case "ViewID":
+                        {
+                            if (int.TryParse(p.Value, out var val))
+                            {
+                                ViewID = val;
+                            }
+
+                            break;
+                        }
+                    case "View":
+                        {
+                            View = p.Value;
+                            break;
+                        }
                 }
             }
         }
@@ -360,7 +459,7 @@ namespace Simego.DataSync.Providers.HighQ
         {
             try
             {
-                return true;
+                return SiteID > 0 && SheetID > 0 && ViewID > 0;
             }
             catch (Exception e)
             {
@@ -523,7 +622,11 @@ namespace Simego.DataSync.Providers.HighQ
         [Category("Connection.Library")]
         [Description("Key Name of the Item in the Connection Library")]
         [DisplayName("Key")]
-        public string RegistryKey { get { return _reader.RegistryKey; } set { _reader.RegistryKey = value; } }
+        public string RegistryKey 
+        { 
+            get => _reader.RegistryKey;
+            set => _reader.RegistryKey = value;
+        }
 
         [Category("Settings")]
         [ReadOnly(true)]
@@ -571,6 +674,22 @@ namespace Simego.DataSync.Providers.HighQ
         {
             get => _reader.Sheet;
             set => _reader.Sheet = value;
+        }
+
+        [Category("Connection")]
+        [ReadOnly(true)]
+        public int ViewID
+        {
+            get => _reader.ViewID;
+            set => _reader.ViewID = value;
+        }
+
+        [Category("Connection")]
+        [Editor(typeof(HighQSheetViewListTypeEditor), typeof(UITypeEditor))]
+        public string View
+        {
+            get => _reader.View;
+            set => _reader.View = value;
         }
 
         [Category("Authentication")]
@@ -635,6 +754,7 @@ namespace Simego.DataSync.Providers.HighQ
 
         public IEnumerable<HighQSite> GetSites() => _reader.GetSites();
         public IEnumerable<HighQSheet> GetSheets(int siteId) => _reader.GetSheets(siteId);
+        public IEnumerable<HighQSheetView> GetSheetViews(int sheetId) => _reader.GetSheetViews(sheetId);
 
         HighQOAuthConfiguration IHighQOAuthConfiguration.GetOauthConfiguration() => ((IHighQOAuthConfiguration)_reader).GetOauthConfiguration();
 

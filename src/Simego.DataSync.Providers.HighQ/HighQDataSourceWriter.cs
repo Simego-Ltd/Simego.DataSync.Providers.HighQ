@@ -71,7 +71,7 @@ namespace Simego.DataSync.Providers.HighQ
                                     new HighQSheetItemColumnModel()
                                     {
                                         Sequence = HighQSchema[column].Sequence, 
-                                        Data = HighQSchema[column].HighQValueParser.ConvertValue(targetItem[column])
+                                        Data = HighQSchema[column].HighQValueParser.ConvertValue(HighQSchema[column], targetItem[column])
                                     });
                             }
 
@@ -159,7 +159,7 @@ namespace Simego.DataSync.Providers.HighQ
                                     new HighQSheetItemColumnModel()
                                     {
                                         Sequence = HighQSchema[column].Sequence,
-                                        Data = HighQSchema[column].HighQValueParser.ConvertValue(targetItem[column])
+                                        Data = HighQSchema[column].HighQValueParser.ConvertValue(HighQSchema[column], targetItem[column])
                                     });
                             }
 

@@ -5,9 +5,9 @@ using Simego.DataSync.Providers.HighQ.Models;
 
 namespace Simego.DataSync.Providers.HighQ.Parsers
 {
-    public class DateTimeHighQValueParser : IHighQValueParser
+    class DateTimeHighQValueParser : IHighQValueParser
     {
-        public object ConvertValue(object value)
+        public object ConvertValue(HighQDataSchemaItem column, object value)
         {
             return new HighQSheetItemDefaultValueModel()
             {
@@ -19,7 +19,7 @@ namespace Simego.DataSync.Providers.HighQ.Parsers
         //    "date": "2021-09-27",
         //    "time": "11:56:50"
         //}
-        public object ParseValue(JToken token)
+        public object ParseValue(HighQDataSchemaItem column, JToken token)
         {
             var date = token["rawdata"]?["date"]?.ToObject<string>();
             var time = token["rawdata"]?["time"]?.ToObject<string>();

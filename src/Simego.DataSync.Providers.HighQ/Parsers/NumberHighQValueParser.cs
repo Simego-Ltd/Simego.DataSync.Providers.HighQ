@@ -4,7 +4,7 @@ using Simego.DataSync.Providers.HighQ.Models;
 
 namespace Simego.DataSync.Providers.HighQ.Parsers
 {
-    class DefaultHighQValueParser : IHighQValueParser
+    class NumberHighQValueParser : IHighQValueParser
     {
         public object ConvertValue(HighQDataSchemaItem column, object value)
         {
@@ -13,12 +13,12 @@ namespace Simego.DataSync.Providers.HighQ.Parsers
                 Text = new[] { DataSchemaTypeConverter.ConvertTo<string>(value) }
             };
         }
-        
+
         public object ParseValue(HighQDataSchemaItem column, JToken token)
-        {           
-            // Return the Value if any.
+        {
             return token?["rawdata"]?["value"]?.ToObject<object>();
         }
+
     }
 
 }

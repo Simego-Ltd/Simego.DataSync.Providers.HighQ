@@ -10,7 +10,7 @@ using Simego.DataSync.Providers.HighQ.Models;
 
 namespace Simego.DataSync.Providers.HighQ.TypeEditors
 {
-    partial class HighQSheetListTypeEditor : UITypeEditor
+    public class HighQSheetViewListTypeEditor : UITypeEditor
     {
         private const BindingFlags DefaultPropertyBinding = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.GetProperty;
 
@@ -24,7 +24,7 @@ namespace Simego.DataSync.Providers.HighQ.TypeEditors
             if (context == null) return value;
             if (provider == null) return value;
 
-            var fSheetIdProperty = context.Instance.GetType().GetProperty("SheetID", DefaultPropertyBinding);
+            var fSheetViewIdProperty = context.Instance.GetType().GetProperty("ViewID", DefaultPropertyBinding);
 
             var grid = context.GetType().InvokeMember(
                 "OwnerGrid",
@@ -35,7 +35,7 @@ namespace Simego.DataSync.Providers.HighQ.TypeEditors
 
             var service = ((IWindowsFormsEditorService)provider.GetService(typeof(IWindowsFormsEditorService)));
 
-            if (grid != null && service != null && fSheetIdProperty != null)
+            if (grid != null && service != null && fSheetViewIdProperty != null)
             {
                 try
                 {
@@ -44,19 +44,19 @@ namespace Simego.DataSync.Providers.HighQ.TypeEditors
                     dynamic reader = context.Instance;
                     if (reader != null)
                     {
-                        var sheets = ((IEnumerable<HighQSheet>)reader.GetSheets(reader.SiteID)).ToList();
+                        var views = ((IEnumerable<HighQSheetView>)reader.GetSheetViews(reader.SheetID)).ToList();
 
                         var list = new ListBox();
                         list.SelectedValueChanged += (sender, e) => { service.CloseDropDown(); };
 
-                        list.Items.AddRange(sheets.Select(p => (object)p.Name).ToArray());
+                        list.Items.AddRange(views.Select(p => (object)p.Name).ToArray());
 
                         // Show the list control.
                         service.DropDownControl(list);
 
                         if (list.SelectedItem != null)
                         {
-                            fSheetIdProperty.SetValue(context.Instance, sheets[list.SelectedIndex].ID, null);
+                            fSheetViewIdProperty.SetValue(context.Instance, views[list.SelectedIndex].ID, null);
                             value = list.Text;
                         }
                     }

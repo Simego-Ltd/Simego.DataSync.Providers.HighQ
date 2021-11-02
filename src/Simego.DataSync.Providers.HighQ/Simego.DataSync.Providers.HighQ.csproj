@@ -6,6 +6,7 @@
     <Copyright>Copyright © Simego Ltd 2021</Copyright>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <Description>Simego Data Sync connector for HighQ iSheet Rest API</Description>
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
