@@ -11,7 +11,7 @@ namespace Simego.DataSync.Providers.HighQ.Parsers
     {
         public object ConvertValue(HighQDataSchemaItem column, object value)
         {       
-            // Trying to implment writing back to a lookup item
+            // Trying to implement writing back to a lookup item
             // can't seem to get it to work tried matching the format of the returned data, simple text etc nothing works.
 
             return new HighQSheetLookupModel()
@@ -29,17 +29,22 @@ namespace Simego.DataSync.Providers.HighQ.Parsers
             {
                 if (isheetItems != null && isheetItems["isheetitem"] is JArray arr)
                 {
-                    var list = new List<string>();
+                    var list = new List<object>();
                     foreach (var isheetItem in arr)
                     {
-                        list.Add(isheetItem[parts[1]]?.ToObject<string>());
+                        list.Add(isheetItem[parts[1]]?.ToObject<object>());
                     }
                     return list.OrderBy(p => p).ToArray();
                 }
 
                 if (isheetItems != null && isheetItems["isheetitem"] is JToken item)
                 {
-                    return item?[parts[1]]?.ToObject<string>();
+                    //var json = "{ linkname: { title: \"test\" } }";
+                    //var json = "{ linkname: { } }";
+                    //var jsonObject = JToken.Parse(json);
+                    //return jsonObject["linkname"].ToObject<object>();
+
+                    return item?[parts[1]]?.ToObject<object>();
                 }
             }
             catch(ArgumentException)
