@@ -13,7 +13,7 @@ using System.Windows.Forms;
 
 namespace Simego.DataSync.Providers.HighQ
 {
-    [ProviderInfo(Name = "HighQ iSheet", Description = "HighQ iSheet Datasource")]
+    [ProviderInfo(Name = "HighQ iSheet", Description = "HighQ iSheet Datasource", Group = "HighQ")]
     public class HighQDataSourceReader : DataReaderProviderBase, IDataSourceSetup, IDataSourceRegistry, IHighQOAuthConfiguration
     {
         private ConnectionInterface _connectionIf;
